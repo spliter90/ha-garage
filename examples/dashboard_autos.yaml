@@ -1,0 +1,137 @@
+# Dashboard-Ansicht „Autos“ (Sections-Layout, Mushroom Cards)
+# Einfügen: Dashboard bearbeiten → ⋮ → Raw-Konfigurationseditor → unter "views:" einfügen.
+# Für jedes weitere Auto die Section kopieren und "duster" durch dessen Kürzel ersetzen
+# (steht im Add-on unter Auto → Sensoren in Home Assistant).
+# Bei Installation aus GitHub statt lokal: "local_garage" durch den Add-on-Slug ersetzen
+# (steht in der Adresszeile, wenn du das Add-on öffnest).
+
+title: Autos
+path: autos
+icon: mdi:car
+type: sections
+max_columns: 3
+sections:
+  - type: grid
+    cards:
+      - type: heading
+        heading: Dacia Duster
+        icon: mdi:car-side
+        badges:
+          - type: entity
+            entity: binary_sensor.garage_duster_wartung_faellig
+            show_state: true
+            color: red
+            visibility:
+              - condition: state
+                entity: binary_sensor.garage_duster_wartung_faellig
+                state: "on"
+
+      - type: custom:mushroom-template-card
+        entity: sensor.garage_duster_naechste_wartung
+        primary: "Nächste Wartung: {{ states(entity) }}"
+        secondary: >-
+          {% set km = state_attr(entity, 'rest_km') %}
+          {% set t = state_attr(entity, 'rest_tage') %}
+          {% set teile = [] %}
+          {% if km is not none %}
+            {% set teile = teile + [('noch ' ~ (km | int) ~ ' km') if km >= 0 else ((km | abs | int) ~ ' km überfällig')] %}
+          {% endif %}
+          {% if t is not none %}
+            {% set teile = teile + [('noch ' ~ t ~ ' Tage') if t >= 0 else ((t | abs) ~ ' Tage überfällig')] %}
+          {% endif %}
+          {{ teile | join(' · ') if teile else 'kein Intervall fällig' }}
+        icon: mdi:wrench-clock
+        icon_color: >-
+          {{ {'ueberfaellig': 'red', 'bald': 'orange', 'ok': 'green'}.get(state_attr(entity, 'status'), 'grey') }}
+        tap_action:
+          action: navigate
+          navigation_path: /hassio/ingress/local_garage
+        grid_options:
+          columns: full
+
+      - type: custom:mushroom-entity-card
+        entity: sensor.garage_duster_kilometerstand
+        name: Kilometerstand
+        grid_options: { columns: 6 }
+      - type: custom:mushroom-entity-card
+        entity: sensor.garage_duster_km_jahr
+        name: km dieses Jahr
+        grid_options: { columns: 6 }
+      - type: custom:mushroom-entity-card
+        entity: sensor.garage_duster_verbrauch_schnitt
+        name: Ø Verbrauch
+        grid_options: { columns: 6 }
+      - type: custom:mushroom-entity-card
+        entity: sensor.garage_duster_verbrauch_letzter
+        name: Verbrauch zuletzt
+        grid_options: { columns: 6 }
+      - type: custom:mushroom-entity-card
+        entity: sensor.garage_duster_kosten_100km
+        name: Sprit / 100 km
+        grid_options: { columns: 6 }
+      - type: custom:mushroom-entity-card
+        entity: sensor.garage_duster_spritpreis
+        name: Spritpreis zuletzt
+        grid_options: { columns: 6 }
+      - type: custom:mushroom-entity-card
+        entity: sensor.garage_duster_tankkosten_jahr
+        name: Tankkosten Jahr
+        grid_options: { columns: 6 }
+      - type: custom:mushroom-entity-card
+        entity: sensor.garage_duster_wartungskosten_jahr
+        name: Wartung Jahr
+        grid_options: { columns: 6 }
+
+      - type: statistics-graph
+        title: Verbrauch (l/100 km)
+        entities:
+          - entity: sensor.garage_duster_verbrauch_letzter
+            name: je Tankintervall
+          - entity: sensor.garage_duster_verbrauch_schnitt
+            name: Durchschnitt
+        stat_types: [mean]
+        period: week
+        days_to_show: 365
+        chart_type: line
+        grid_options:
+          columns: full
+
+      - type: custom:mushroom-template-card
+        primary: Tankung oder Wartung erfassen
+        secondary: Öffnet die Garage
+        icon: mdi:gas-station
+        icon_color: blue
+        tap_action:
+          action: navigate
+          navigation_path: /hassio/ingress/local_garage
+        grid_options:
+          columns: full
+
+  # --- Beispiel Wohnwagen (Kürzel "wohnwagen") – für Anhänger genauso ---
+  - type: grid
+    cards:
+      - type: heading
+        heading: Wohnwagen
+        icon: mdi:caravan
+      - type: custom:mushroom-template-card
+        entity: sensor.garage_wohnwagen_naechste_wartung
+        primary: "Nächste Prüfung: {{ states(entity) }}"
+        secondary: >-
+          {% set t = state_attr(entity, 'rest_tage') %}
+          {% if t is none %}kein Termin{% elif t >= 0 %}am {{ as_timestamp(state_attr(entity, 'faellig_am')) | timestamp_custom('%d.%m.%Y') }} (noch {{ t }} Tage){% else %}{{ t | abs }} Tage überfällig{% endif %}
+        icon: mdi:clipboard-check-outline
+        icon_color: >-
+          {{ {'ueberfaellig': 'red', 'bald': 'orange', 'ok': 'green'}.get(state_attr(entity, 'status'), 'grey') }}
+        tap_action:
+          action: navigate
+          navigation_path: /hassio/ingress/local_garage
+        grid_options:
+          columns: full
+      - type: custom:mushroom-entity-card
+        entity: sensor.garage_wohnwagen_wartungskosten_jahr
+        name: Kosten dieses Jahr
+        grid_options: { columns: 6 }
+      - type: custom:mushroom-entity-card
+        entity: binary_sensor.garage_wohnwagen_wartung_faellig
+        name: Etwas fällig?
+        grid_options: { columns: 6 }

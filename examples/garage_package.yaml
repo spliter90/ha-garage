@@ -1,0 +1,100 @@
+# Optionales Paket: Tankung direkt aus Home Assistant erfassen (Skript, Assist, Automationen)
+# und Benachrichtigung, wenn eine Wartung fällig wird.
+#
+# Einrichtung:
+# 1. Im Add-on unter „Konfiguration“ ein API-Token setzen (beliebige lange Zeichenkette).
+# 2. In secrets.yaml:   garage_token: "Bearer DEIN_TOKEN"
+# 3. In configuration.yaml (falls noch nicht vorhanden):
+#      homeassistant:
+#        packages: !include_dir_named packages
+#    und diese Datei als packages/garage.yaml ablegen.
+# 4. Hostname prüfen: lokal installiert = local-garage, aus GitHub = <hash>-garage
+#    (steht auf der Info-Seite des Add-ons unter „Hostname“).
+
+rest_command:
+  garage_tankung:
+    url: http://local-garage:8099/api/refuels
+    method: post
+    content_type: application/json
+    headers:
+      Authorization: !secret garage_token
+    payload: >-
+      {"car": "{{ auto }}",
+       "odometer": {{ km | float }},
+       "liters": {{ liter | float }},
+       "price_total": {% if betrag | float(0) > 0 %}{{ betrag | float }}{% else %}null{% endif %},
+       "full": {{ 1 if voll else 0 }}}
+
+  garage_kmstand:
+    url: http://local-garage:8099/api/readings
+    method: post
+    content_type: application/json
+    headers:
+      Authorization: !secret garage_token
+    payload: '{"car": "{{ auto }}", "odometer": {{ km | float }}}'
+
+script:
+  garage_tankung_erfassen:
+    alias: Tankung erfassen
+    icon: mdi:gas-station
+    mode: queued
+    fields:
+      auto:
+        name: Auto (Kürzel)
+        required: true
+        default: duster
+        selector:
+          text:
+      km:
+        name: km-Stand
+        required: true
+        selector:
+          number: { min: 0, max: 999999, mode: box, unit_of_measurement: km }
+      liter:
+        name: Liter
+        required: true
+        selector:
+          number: { min: 0, max: 200, step: 0.01, mode: box, unit_of_measurement: l }
+      betrag:
+        name: Betrag
+        selector:
+          number: { min: 0, max: 500, step: 0.01, mode: box, unit_of_measurement: € }
+      voll:
+        name: Vollgetankt
+        default: true
+        selector:
+          boolean:
+    sequence:
+      - action: rest_command.garage_tankung
+        data:
+          auto: "{{ auto }}"
+          km: "{{ km }}"
+          liter: "{{ liter }}"
+          betrag: "{{ betrag | default(0) }}"
+          voll: "{{ voll | default(true) }}"
+        response_variable: antwort
+      - if: "{{ antwort.status != 201 }}"
+        then:
+          - action: persistent_notification.create
+            data:
+              title: Garage
+              message: "Tankung nicht gespeichert: {{ antwort.content }}"
+
+automation:
+  - id: garage_wartung_faellig
+    alias: Garage – Wartung fällig
+    triggers:
+      - trigger: state
+        entity_id:
+          - binary_sensor.garage_duster_wartung_faellig
+          # weitere Autos hier ergänzen
+        to: "on"
+    conditions:
+      # nicht bei jedem HA-Neustart melden (Sensor entsteht dann neu)
+      - condition: template
+        value_template: "{{ trigger.from_state is not none and trigger.from_state.state == 'off' }}"
+    actions:
+      - action: notify.notify
+        data:
+          title: "{{ state_attr(trigger.entity_id, 'auto') }}: Wartung fällig"
+          message: "{{ state_attr(trigger.entity_id, 'faellig') | join(', ') }}"

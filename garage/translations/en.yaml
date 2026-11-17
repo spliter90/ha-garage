@@ -1,0 +1,13 @@
+configuration:
+  warn_km:
+    name: Warning threshold (km)
+    description: Remaining kilometres at which a service counts as "due soon".
+  warn_tage:
+    name: Warning threshold (days)
+    description: Remaining days at which a service counts as "due soon".
+  publish_interval:
+    name: Sensor update interval (seconds)
+    description: How often sensors are pushed to Home Assistant. Changes are pushed immediately.
+  api_token:
+    name: API token
+    description: Optional. Required if Home Assistant (rest_command) or other tools should create entries directly.

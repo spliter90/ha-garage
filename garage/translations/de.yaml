@@ -1,0 +1,13 @@
+configuration:
+  warn_km:
+    name: Vorwarnung in Kilometern
+    description: Ab wie vielen Restkilometern eine Wartung als „bald fällig“ gilt.
+  warn_tage:
+    name: Vorwarnung in Tagen
+    description: Ab wie vielen Resttagen eine Wartung als „bald fällig“ gilt.
+  publish_interval:
+    name: Sensor-Aktualisierung (Sekunden)
+    description: Wie oft die Sensoren an Home Assistant gemeldet werden. Nach jeder Änderung wird sofort gemeldet.
+  api_token:
+    name: API-Token
+    description: Optional. Nötig, wenn Home Assistant (rest_command) oder andere Programme Einträge direkt anlegen sollen.
